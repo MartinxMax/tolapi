@@ -5,6 +5,7 @@ import uuid
 from flask import Flask, request, send_from_directory, render_template_string, make_response, redirect, jsonify
 import random
 import string
+ 
 
 app = Flask(__name__)
 
@@ -12,7 +13,12 @@ app = Flask(__name__)
 def generate_password(length=12):
     chars = string.ascii_letters + string.digits  
     return ''.join(random.choice(chars) for _ in range(length))
+ 
+FAILED_ATTEMPTS = {}  
+BANNED_IPS = {}     
 
+MAX_ATTEMPTS = 5
+BAN_DURATION = 60*5   
 
 GET_DIR = "./get"
 PUT_DIR = "./put"
@@ -31,8 +37,8 @@ INFO = f'''
 ⠀⠀⠀⠀⠀⠀⠀⠙⠂⠀⠙⢀⣀⣿⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⠁⠀⣻⣿⣿⣿⣿⣿⣿⠏⠀⠘⠃⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡈⠻⠿⣿⣿⣿⡿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠻⢿⣿⣿⣿⠿⠛⢁⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠚⠛⣶⣦⣤⣤⣤⡤⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠰⢤⣤⣤⣤⣶⣾⠛⠓⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            Maptnh@S-H4CK13                 tolapi V1.0
-                https://github.com/MartinxMax/
+            Maptnh@S-H4CK13{' '*100}tolapi V1.3
+{' '*70}https://github.com/MartinxMax/
 [Auth-Code]=====>{AUTH_PASSWORD}
 '''
 
@@ -150,7 +156,7 @@ function generateUploadToken(){
         data.forEach(block=>{
             let fileToken = block.file.replace(/\W/g,'_');
 
-            let winHtml = block.windows.map(cmd=>`<div class="cmd-line">${cmd.replace(/C:\\\\path\\\\file\.txt/g, localFile)}</div>`).join('');
+            let winHtml = block.windows.map(cmd=>`<div class="cmd-line">${cmd.replace(/FILE_NAME/g, localFile)}</div>`).join('');
             let linHtml = block.linux.map(cmd=>`<div class="cmd-line">${cmd.replace(/\/path\/to\/file\.txt/g, localFile)}</div>`).join('');
 
             let html = `<div class="file-cmd-card">
@@ -257,19 +263,91 @@ def get_user_folder(ip):
 # ---------------------- Routes ----------------------
 @app.route("/")
 def login():
+    ip = request.remote_addr
+
+  
+    if ip in BANNED_IPS:
+        if time.time() < BANNED_IPS[ip]:
+            remain = int(BANNED_IPS[ip] - time.time())
+            return f"<h1>403 Forbidden</h1><p>Your IP is temporarily banned for {remain} seconds due to too many failed login attempts.</p>", 403
+        else:
+            del BANNED_IPS[ip]
+
     pwd = request.args.get("pwd")
-    if pwd and pwd == AUTH_PASSWORD:
-        resp = make_response(redirect("/dashboard"))
-        encoded = base64.b64encode(pwd.encode()).decode()
-        resp.set_cookie("auth", encoded, max_age=3600)
-        return resp
+    if pwd:
+        if pwd == AUTH_PASSWORD:
+            if ip in FAILED_ATTEMPTS:
+                del FAILED_ATTEMPTS[ip]
+            resp = make_response(redirect("/dashboard"))
+            encoded = base64.b64encode(pwd.encode()).decode()
+            resp.set_cookie("auth", encoded, max_age=3600)
+            return resp
+        else:
+            if ip not in FAILED_ATTEMPTS:
+                FAILED_ATTEMPTS[ip] = [0, time.time()]
+            FAILED_ATTEMPTS[ip][0] += 1
+            if FAILED_ATTEMPTS[ip][0] >= MAX_ATTEMPTS:
+                BANNED_IPS[ip] = time.time() + BAN_DURATION
+                del FAILED_ATTEMPTS[ip]
+                return "<h1>403 Forbidden</h1><p>Your IP is temporarily banned due to too many failed login attempts.</p>", 403
+            else:
+                return f"<script>alert('Wrong password! Attempt {FAILED_ATTEMPTS[ip][0]} of {MAX_ATTEMPTS}'); window.location.href='/'</script>"
+
+    # 現代感密碼輸入頁面
     return '''
-    <script>
-    let pwd = prompt("Please enter password:");
-    if(!pwd){ alert("Access canceled"); }
-    else{ window.location.href = "/?pwd="+encodeURIComponent(pwd); }
-    </script>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <title>TOL-API</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family: 'Inter', sans-serif; }
+    body { display:flex; justify-content:center; align-items:center; height:100vh; background: linear-gradient(135deg,#667eea,#764ba2); }
+    #pwdBox { background:#fff; padding:40px; border-radius:15px; box-shadow:0 15px 40px rgba(0,0,0,0.3); width:320px; text-align:center; }
+    h2 { margin-bottom:20px; color:#333; }
+    .pwd-container { position:relative; margin-bottom:20px; }
+    input[type="password"], input[type="text"] { width:100%; padding:12px 40px 12px 12px; border-radius:10px; border:1px solid #ddd; font-size:1em; outline:none; transition:0.3s; }
+    input[type="password"]:focus, input[type="text"]:focus { border-color:#667eea; box-shadow:0 0 8px rgba(102,126,234,0.3); }
+    .eye { position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:1.2em; color:#666; transition:0.2s; }
+    .eye:hover { color:#667eea; }
+    button { width:100%; padding:12px; background:#667eea; border:none; border-radius:10px; color:#fff; font-size:1em; font-weight:600; cursor:pointer; transition:0.3s; }
+    button:hover { background:#5563c1; transform:translateY(-2px); box-shadow:0 6px 15px rgba(0,0,0,0.2); }
+    </style>
+    </head>
+    <body>
+        <div id="pwdBox">
+            <h2>Auth Code</h2>
+            <div class="pwd-container">
+                <input type="password" id="pwdInput" placeholder="Code">
+                <span class="eye" onclick="togglePwd()">👁️</span>
+            </div>
+            <button onclick="submitPwd()">Login</button>
+        </div>
+
+        <script>
+        function submitPwd() {
+            let pwd = document.getElementById("pwdInput").value;
+            if(!pwd){
+                alert("Access canceled");
+            } else {
+                window.location.href = "/?pwd=" + encodeURIComponent(pwd);
+            }
+        }
+
+        function togglePwd() {
+            let input = document.getElementById("pwdInput");
+            input.type = input.type === "password" ? "text" : "password";
+        }
+
+        document.getElementById("pwdInput").addEventListener("keypress", function(e){
+            if(e.key === "Enter") submitPwd();
+        });
+        </script>
+    </body>
+    </html>
     '''
+
 
 @app.route("/dashboard")
 def dashboard():
@@ -329,18 +407,18 @@ def generate_upload_token():
     upload_tokens[token] = time.time() + expire
 
     windows_cmds = [
-        f'powershell -c "Invoke-WebRequest -Method POST -InFile \'C:\\path\\file.txt\' -Uri \'{request.host_url}upload_with_token/{token}\'"',
-        f'curl -X POST -F "file=@C:\\path\\file.txt" "{request.host_url}upload_with_token/{token}"',
-        f'wget --method=POST --body-file=C:\\path\\file.txt "{request.host_url}upload_with_token/{token}"',
-        f'aria2 --post-file=C:\\path\\file.txt "{request.host_url}upload_with_token/{token}"',
-        f'lftp -c "open {request.host_url}; put C:\\path\\file.txt"'
+ 
+	f'Terminal in Powershell :</br>$f=Join-Path $PWD \'FILE_NAME\'; $u=\'{request.host_url}upload_with_token/{token}\'; $wc=New-Object System.Net.WebClient; $r=$wc.UploadFile($u,$f); [System.Text.Encoding]::UTF8.GetString($r)',
+        f'Terminal in CMD :</br>powershell.exe -NoProfile -Command "$f=Join-Path $PWD \'FILE_NAME\'; $u=\'{request.host_url}upload_with_token/{token}\'; $wc=New-Object System.Net.WebClient; $r=$wc.UploadFile($u,$f); [System.Text.Encoding]::UTF8.GetString($r)"',
+        f'curl.exe -X POST -F "file=@FILE_NAME" "{request.host_url}upload_with_token/{token}"',
+        f'aria2 --post-file=FILE_NAME "{request.host_url}upload_with_token/{token}"',
+        f'lftp -c "open {request.host_url}; put FILE_NAME"'
     ]
     linux_cmds = [
         f'curl -X POST -F "file=@/path/to/file.txt" "{request.host_url}upload_with_token/{token}"',
-        f'wget --method=POST --body-file=/path/to/file.txt "{request.host_url}upload_with_token/{token}"',
         f'aria2 --post-file=/path/to/file.txt "{request.host_url}upload_with_token/{token}"',
         f'lftp -c "open {request.host_url}; put /path/to/file.txt"',
-        f'python3 -c "import requests; requests.post(\'{request.host_url}upload_with_token/{token}\', files={{\'file\': open(\'/path/to/file.txt\',\'rb\')}})"',
+        f"python3 -c 'import requests; r = requests.post(\"{request.host_url}upload_with_token/{token}\", files={{\"file\": open(\"/path/to/file.txt\",\"rb\")}}); print(\"o_o---success!!!\" if r.status_code == 200 else \"X_X----failed\")'",
         f'powershell -c "Invoke-WebRequest -Method POST -InFile \'/path/to/file.txt\' -Uri \'{request.host_url}upload_with_token/{token}\'"'
     ]
     return jsonify([{"file":"Upload Commands","windows":windows_cmds,"linux":linux_cmds}])
@@ -355,17 +433,32 @@ def upload_with_token(token):
         return "No file uploaded", 400
 
     file = request.files["file"]
-    filename = os.path.basename(file.filename)
-    if not filename or "/" in filename or "\\" in filename:
+    orig_name = file.filename
+    if not orig_name:
         return "Invalid filename", 400
-
+    _, ext = os.path.splitext(orig_name)
+    timestamp_name = f"{int(time.time() * 1000)}{ext}" 
     user_folder = get_user_folder(request.remote_addr)
-    save_path = os.path.join(user_folder, filename)
+    os.makedirs(user_folder, exist_ok=True)
+    save_path = os.path.join(user_folder, timestamp_name)
     file.save(save_path)
+
     return f"File uploaded successfully to {save_path}"
+
+def find_available_port(preferred=80, fallback=10831):
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        s.bind(('', preferred))
+        s.close()
+        return preferred
+    except OSError:
+        return fallback
 
 # ---------------------- Run ----------------------
 if __name__ == "__main__":
+    print('*'*100)
     print(INFO)
-    print('='*50)
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    port = find_available_port()
+    print('*'*100)
+    app.run(host="0.0.0.0", port=port, debug=False)
