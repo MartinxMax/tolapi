@@ -5,6 +5,8 @@ import uuid
 from flask import Flask, request, send_from_directory, render_template_string, make_response, redirect, jsonify
 import random
 import string
+import json
+import html
  
 
 app = Flask(__name__)
@@ -37,7 +39,7 @@ INFO = f'''
 ⠀⠀⠀⠀⠀⠀⠀⠙⠂⠀⠙⢀⣀⣿⣿⣿⣿⣿⣿⣿⠟⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠻⠁⠀⣻⣿⣿⣿⣿⣿⣿⠏⠀⠘⠃⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⡈⠻⠿⣿⣿⣿⡿⠟⠋⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠘⠻⢿⣿⣿⣿⠿⠛⢁⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠚⠛⣶⣦⣤⣤⣤⡤⠆⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠰⢤⣤⣤⣤⣶⣾⠛⠓⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-            Maptnh@S-H4CK13{' '*100}tolapi V1.3
+            Maptnh@S-H4CK13{' '*100}tolapi V1.4
 {' '*70}https://github.com/MartinxMax/
 [Auth-Code]=====>{AUTH_PASSWORD}
 '''
@@ -56,28 +58,37 @@ DASHBOARD_TEMPLATE = """
 <meta charset="utf-8">
 <title>TOL-API Dashboard</title>
 <style>
+/* 全局 */
 body { font-family: "Segoe UI","Arial",sans-serif; background:#f5f6fa; margin:0; padding:0; }
 header { background: linear-gradient(90deg,#4a90e2,#3578e5); color:#fff; padding:20px; font-size:1.8em; font-weight:bold; display:flex; justify-content:space-between; align-items:center; }
-.container { display:flex; height:calc(100vh - 60px); }
-.nav { width:140px; background:#fff; border-right:1px solid #ddd; display:flex; flex-direction:column; }
+
+/* 主容器 */
+.container { display:flex; height:calc(100vh - 60px); overflow:hidden; }
+.nav { width:160px; background:#fff; border-right:1px solid #ddd; display:flex; flex-direction:column; }
 .nav button { padding:12px; border:none; background:none; text-align:left; cursor:pointer; font-size:1em; border-left:4px solid transparent; transition:0.2s; }
 .nav button.active { background:#e0e4f7; border-left-color:#4a90e2; font-weight:bold; }
 .nav button:hover { background:#f0f4fa; }
+
 .content { flex:1; padding:20px; overflow:auto; }
-.file-list { display:flex; flex-wrap:wrap; gap:20px; margin-top:10px; }
-.file-card { background:#fff; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); padding:20px; width:200px; display:flex; align-items:center; transition:transform 0.2s, box-shadow 0.2s; }
+
+/* 文件列表 */
+h3 { margin-top:20px; margin-bottom:10px; color:#333; }
+.file-list { display:flex; flex-wrap: wrap; gap:20px; margin-top:5px; }
+.file-card { background:#fff; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); padding:15px; width:200px; display:flex; align-items:center; transition:transform 0.2s, box-shadow 0.2s; }
 .file-card:hover { transform:translateY(-3px); box-shadow:0 8px 20px rgba(0,0,0,0.15); }
 .file-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:#333; flex:1; }
 input[type=checkbox] { margin-right:10px; }
 
-.file-cmd-card { background:#fff; border-radius:8px; padding:10px; margin-top:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+/* Token & 命令区块 */
+.file-cmd-card { background:#fff; border-radius:8px; padding:10px; margin-top:15px; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
 .tabs { margin-top:5px; }
-.tab-btn { border:none; background:#e0e4f7; padding:4px 8px; cursor:pointer; margin-right:5px; border-radius:4px; }
+.tab-btn { border:none; background:#e0e4f7; padding:4px 8px; cursor:pointer; margin-right:5px; border-radius:4px; font-size:0.9em; }
 .tab-btn.active { background:#4a90e2; color:#fff; }
-.tab-content { background:#f0f4fa; padding:6px; border-radius:4px; margin-top:5px; font-family:monospace; }
+.tab-content { background:#f0f4fa; padding:6px; border-radius:4px; margin-top:5px; font-family:monospace; font-size:0.9em; max-height:300px; overflow:auto; }
 .cmd-line { position: relative; padding:2px 6px; margin:2px 0; border-radius:4px; display:flex; justify-content:flex-start; align-items:center; }
 .cmd-line:hover { background: #fff3a1; }
 
+/* 按钮 */
 .btn {
     padding: 10px 20px;
     border-radius: 8px;
@@ -94,6 +105,7 @@ input[type=checkbox] { margin-right:10px; }
     box-shadow: 0 6px 15px rgba(0,0,0,0.2);
 }
 </style>
+
 <script>
 function showPanel(panelId){
     document.querySelectorAll(".panel").forEach(p=>p.style.display="none");
@@ -176,40 +188,41 @@ function generateUploadToken(){
 window.onload = function(){ showPanel('get-panel'); }
 </script>
 </head>
+
 <body>
 <header>
     <span>TOL-API Dashboard</span>
     <a href="https://github.com/MartinxMax/" target="_blank" style="font-size: 0.6em; font-weight: normal; color:#fff; text-decoration:none;">S-H4CK13@Maptnh</a>
 </header>
+
 <div class="container">
     <div class="nav">
         <button data-panel="get-panel" onclick="showPanel('get-panel')">Download</button>
         <button data-panel="put-panel" onclick="showPanel('put-panel')">Upload</button>
     </div>
+
     <div class="content">
         <!-- GET Panel -->
         <div id="get-panel" class="panel">
             <label>Token Expiry (seconds): <input type="number" id="expire-time" value="60" min="1"></label>
             <button class="btn" onclick="generateCurlToken()">Generate Download Commands</button>
-
-            <h2>Download Commands</h2>
             <div id="curl-box"></div>
 
-            {% for folder, files in get_files.items() %}
-            <h3>{{ folder or "/" }}</h3>
-            <div class="file-list">
-                {% for f in files %}
-                <div class="file-card">
-                    <input type="checkbox" value="{{ f }}">
-                    <span class="file-name">{{ f.split('/')[-1] }}</span>
-                </div>
+            {% for folder, info in get_files.items() %}
+                <h3>{{ folder or "/" }}{% if info.description %} <small style="color:#666; font-weight:normal;">{{ info.description }}</small>{% endif %}</h3>
+                <div class="file-list">
+                {% for f in info.files %}
+                    <div class="file-card">
+                        <input type="checkbox" value="{{ f }}">
+                        <span class="file-name">{{ f.split('/')[-1] }}</span>
+                    </div>
                 {% endfor %}
-            </div>
+                </div>
             {% endfor %}
         </div>
 
         <!-- PUT Panel -->
-        <div id="put-panel" class="panel" style="display:none">
+        <div id="put-panel" class="panel" style="display:none;">
             <label>Token Expiry (seconds): <input type="number" id="upload-expire" value="60" min="1"></label>
             <br>
             <label>Local File Path: <input type="text" id="local-file" placeholder="e.g., C:/Users/Leader/Desktop/file.txt"></label>
@@ -221,6 +234,7 @@ window.onload = function(){ showPanel('get-panel'); }
 </body>
 </html>
 """
+
 
 FORBIDDEN_TEMPLATE = "<h1>403 Forbidden</h1>"
 
@@ -234,9 +248,23 @@ def list_files_grouped(base_dirs):
             rel_root = os.path.relpath(root, base_dir).replace("\\", "/")
             folder = rel_root if rel_root != "." else ""
             files_sorted = sorted(filenames, key=lambda f: os.path.getmtime(os.path.join(root, f)), reverse=True)
-            grouped.setdefault(folder, [])
+            
+ 
+            description = ""
+            describe_path = os.path.join(root, "describe.conf")
+            if os.path.isfile(describe_path):
+                try:
+                    with open(describe_path, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+                        if isinstance(data, dict) and 'describe' in data:
+                            description = html.escape(str(data['describe']))
+                except Exception:
+           
+                    pass
+
+            grouped.setdefault(folder, {"files": [], "description": description})
             for f in files_sorted:
-                grouped[folder].append(os.path.join(rel_root, f).replace("\\","/"))
+                grouped[folder]["files"].append(os.path.join(rel_root, f).replace("\\","/"))
     return grouped
 
 def find_file_in_all_dirs(filename):
