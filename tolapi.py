@@ -58,11 +58,11 @@ DASHBOARD_TEMPLATE = """
 <meta charset="utf-8">
 <title>TOL-API Dashboard</title>
 <style>
-/* 全局 */
+
 body { font-family: "Segoe UI","Arial",sans-serif; background:#f5f6fa; margin:0; padding:0; }
 header { background: linear-gradient(90deg,#4a90e2,#3578e5); color:#fff; padding:20px; font-size:1.8em; font-weight:bold; display:flex; justify-content:space-between; align-items:center; }
 
-/* 主容器 */
+
 .container { display:flex; height:calc(100vh - 60px); overflow:hidden; }
 .nav { width:160px; background:#fff; border-right:1px solid #ddd; display:flex; flex-direction:column; }
 .nav button { padding:12px; border:none; background:none; text-align:left; cursor:pointer; font-size:1em; border-left:4px solid transparent; transition:0.2s; }
@@ -71,7 +71,7 @@ header { background: linear-gradient(90deg,#4a90e2,#3578e5); color:#fff; padding
 
 .content { flex:1; padding:20px; overflow:auto; }
 
-/* 文件列表 */
+
 h3 { margin-top:20px; margin-bottom:10px; color:#333; }
 .file-list { display:flex; flex-wrap: wrap; gap:20px; margin-top:5px; }
 .file-card { background:#fff; border-radius:10px; box-shadow:0 4px 8px rgba(0,0,0,0.1); padding:15px; width:200px; display:flex; align-items:center; transition:transform 0.2s, box-shadow 0.2s; }
@@ -79,7 +79,7 @@ h3 { margin-top:20px; margin-bottom:10px; color:#333; }
 .file-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:#333; flex:1; }
 input[type=checkbox] { margin-right:10px; }
 
-/* Token & 命令区块 */
+
 .file-cmd-card { background:#fff; border-radius:8px; padding:10px; margin-top:15px; box-shadow:0 4px 8px rgba(0,0,0,0.1); }
 .tabs { margin-top:5px; }
 .tab-btn { border:none; background:#e0e4f7; padding:4px 8px; cursor:pointer; margin-right:5px; border-radius:4px; font-size:0.9em; }
@@ -88,7 +88,7 @@ input[type=checkbox] { margin-right:10px; }
 .cmd-line { position: relative; padding:2px 6px; margin:2px 0; border-radius:4px; display:flex; justify-content:flex-start; align-items:center; }
 .cmd-line:hover { background: #fff3a1; }
 
-/* 按钮 */
+
 .btn {
     padding: 10px 20px;
     border-radius: 8px;
@@ -321,7 +321,7 @@ def login():
             else:
                 return f"<script>alert('Wrong password! Attempt {FAILED_ATTEMPTS[ip][0]} of {MAX_ATTEMPTS}'); window.location.href='/'</script>"
 
-    # 現代感密碼輸入頁面
+    
     return '''
     <!DOCTYPE html>
     <html lang="en">
